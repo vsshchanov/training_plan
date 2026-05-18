@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>План тренировок в зале</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header class="header">
+        <h1 class="header__title">План тренировок в зале</h1>
+        <span class="header__storage-badge" id="storageBadge">
+            Хранилище: {{ storage_type }}
+        </span>
+    </header>
+
+    <main class="container">
+        <button class="btn-add-day" id="btnAddDay" title="Добавить новый тренировочный день">
+            <span class="btn-add-day__icon">+</span>
+            <span class="btn-add-day__text">Новый день</span>
+        </button>
+
+        <div class="workout-list" id="workoutList"></div>
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <p>Нет сохранённых тренировок.</p>
+            <p>Нажмите «+ Новый день», чтобы добавить первую запись.</p>
+        </div>
+    </main>
+
+    <!-- Модалка: День -->
+    <div class="modal-overlay" id="modalOverlay" style="display: none;">
+        <div class="modal">
+            <h2 class="modal__title" id="modalTitle">Новый тренировочный день</h2>
+            <form id="modalForm">
+                <input type="hidden" id="modalDayId" value="">
+                <label class="form-label" for="modalDate">Дата тренировки:</label>
+                <input class="form-input" type="date" id="modalDate" required>
+                <label class="form-label" for="modalName">Название тренировки:</label>
+                <input class="form-input" type="text" id="modalName" placeholder="Например: Спина и бицепс" required>
+                <div class="modal__actions">
+                    <button type="button" class="btn btn--cancel" id="btnModalCancel">Отмена</button>
+                    <button type="submit" class="btn btn--save">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модалка: Упражнение (добавление/редактирование) -->
+    <div class="modal-overlay" id="exerciseModalOverlay" style="display: none;">
+        <div class="modal modal--wide">
+            <h2 class="modal__title" id="exerciseModalTitle">Новое упражнение</h2>
+            <form id="exerciseModalForm">
+                <input type="hidden" id="exerciseModalDayId" value="">
+                <input type="hidden" id="exerciseModalExerciseId" value="">
+                <label class="form-label" for="exerciseModalName">Название упражнения:</label>
+                <input class="form-input" type="text" id="exerciseModalName" placeholder="Например: Подтягивания"
+                    required>
+
+                <div class="sets-container" id="setsContainer">
+                    <h3>Подходы</h3>
+                    <!-- Динамически добавляются строки подходов -->
+                </div>
+                <button type="button" class="btn btn--add-set" id="btnAddSet">+ Добавить подход</button>
+
+                <div class="modal__actions" style="margin-top: 16px;">
+                    <button type="button" class="btn btn--cancel" id="btnExerciseModalCancel">Отмена</button>
+                    <button type="submit" class="btn btn--save">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Workout Tracker &copy; 2025</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

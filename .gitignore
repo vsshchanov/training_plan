@@ -1,0 +1,32 @@
+# Виртуальное окружение Python
+venv/
+env/
+.venv/
+
+# Кэш и скомпилированные файлы
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Файл с секретами (токен ngrok, пароль БД)
+.env
+
+# Данные JSON-хранилища (если используется)
+data/
+
+# Тома Docker (база данных)
+pgdata/
+
+# Папка IDE
+.vscode/
+.idea/
+
+# Файлы операционных систем
+.DS_Store
+Thumbs.db
+
+# Логи
+*.log

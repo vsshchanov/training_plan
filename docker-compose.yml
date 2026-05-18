@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: workout_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-workout_tracker}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-workout_tracker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: workout_app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      STORAGE_TYPE: postgresql
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-workout_tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5000:5000"
+
+  ngrok:
+    image: wernight/ngrok:latest
+    container_name: workout_ngrok
+    depends_on:
+      - web
+    environment:
+      NGROK_AUTH: ${NGROK_AUTHTOKEN}   # ваш токен из .env
+      NGROK_PORT: web:5000
+      NGROK_REGION: eu                 # можно us, ap, au, eu
+    ports:
+      - "4040:4040"   # веб-интерфейс ngrok (для просмотра URL)
+
+volumes:
+  pgdata:
