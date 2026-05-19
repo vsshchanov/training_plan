@@ -17,28 +17,7 @@
 
 ## 🚀 Быстрый старт (Docker)
 
-1. **Клонируйте репозиторий:**
+**Клонируйте репозиторий:**
    ```bash
    git clone https://github.com/yourname/workout-tracker.git
    cd workout-tracker
-
-
-**СТРУКТУРА ПРОЕКТА**
-
-workout-tracker/
-├── app.py                     # Flask-приложение
-├── config.py                  # Конфигурация хранилища
-├── storage/                   # Абстракция хранилищ
-│   ├── base.py
-│   ├── json_storage.py
-│   └── postgres_storage.py
-├── templates/
-│   └── index.html             # Единственная страница
-├── static/
-│   ├── css/style.css
-│   └── js/app.js
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── .env.example               # Шаблон переменных окружения
-└── README.md
