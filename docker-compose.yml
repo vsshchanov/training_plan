@@ -35,14 +35,13 @@ services:
       - "5000:5000"
 
   ngrok:
-    image: wernight/ngrok:latest
+    image: ngrok/ngrok:latest
     container_name: workout_ngrok
     depends_on:
       - web
     environment:
-      NGROK_AUTH: ${NGROK_AUTHTOKEN}
-      NGROK_PORT: web:5000
-      NGROK_REGION: eu
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: ["http", "web:5000", "--region=eu", "--log=stdout"]
     ports:
       - "4040:4040"
 
