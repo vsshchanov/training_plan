@@ -116,21 +116,25 @@ def add_exercise(day_id):
     if not data or "name" not in data or "sets" not in data:
         return jsonify({"error": "Поля 'name' и 'sets' обязательны"}), 400
     # ... (валидация как раньше)
-    exercise = storage.add_exercise(day_id, data["name"], data["sets"], current_user.id)
+    description = data.get("description", None)
+    exercise = storage.add_exercise(day_id, data["name"], data["sets"], current_user.id, description=description)
     if exercise is None:
         return jsonify({"error": "Тренировочный день не найден или доступ запрещён"}), 404
     return jsonify(exercise), 201
-
+    
+    
 @app.route("/api/workouts/<day_id>/exercises/<exercise_id>", methods=["PUT"])
 @login_required
 def update_exercise(day_id, exercise_id):
     data = request.get_json()
     if not data or "name" not in data or "sets" not in data:
         return jsonify({"error": "Поля 'name' и 'sets' обязательны"}), 400
-    updated = storage.update_exercise(day_id, exercise_id, data["name"], data["sets"], current_user.id)
+    description = data.get("description", None)
+    updated = storage.update_exercise(day_id, exercise_id, data["name"], data["sets"], current_user.id, description=description)
     if updated is None:
         return jsonify({"error": "Упражнение не найдено или доступ запрещён"}), 404
     return jsonify(updated)
+    
 
 @app.route("/api/workouts/<day_id>/exercises/<exercise_id>", methods=["DELETE"])
 @login_required

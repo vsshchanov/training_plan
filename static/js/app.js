@@ -151,6 +151,7 @@ const exerciseModalName = document.getElementById('exerciseModalName');
 const setsContainer = document.getElementById('setsContainer');
 const btnAddSet = document.getElementById('btnAddSet');
 const btnExerciseModalCancel = document.getElementById('btnExerciseModalCancel');
+const exerciseModalDesc = document.getElementById('exerciseModalDesc')
 
 const expandedDays = new Set();
 
@@ -229,6 +230,7 @@ function createWorkoutCard(day) {
                     <div class="exercise-item" data-exercise-id="${ex.id}">
                         <div class="exercise-item__info">
                             <span class="exercise-item__name">${escapeHTML(ex.name)}</span>
+                            ${ex.description ? `<span class="exercise-item__desc">${escapeHTML(ex.description)}</span>` : ''}
                             <span class="exercise-item__sets">${formatSets(ex.sets)}</span>
                         </div>
                         <div class="exercise-item__actions">
@@ -352,11 +354,13 @@ function openExerciseModal(dayId, exercise = null) {
         exerciseModalTitle.textContent = 'Редактировать упражнение';
         exerciseModalExerciseId.value = exercise.id;
         exerciseModalName.value = exercise.name;
+        exerciseModalDesc.value = exercise.description || '';
         exercise.sets.forEach(s => setsContainer.appendChild(createSetRow(s)));
     } else {
         exerciseModalTitle.textContent = 'Новое упражнение';
         exerciseModalExerciseId.value = '';
         exerciseModalName.value = '';
+        exerciseModalDesc.value = '';
         setsContainer.appendChild(createSetRow());
     }
     exerciseModalOverlay.style.display = 'flex';
@@ -375,6 +379,7 @@ async function submitExerciseForm(e) {
     const dayId = exerciseModalDayId.value;
     const exerciseId = exerciseModalExerciseId.value;
     const name = exerciseModalName.value.trim();
+    const description = document.getElementById('exerciseModalDesc').value.trim();
     const setRows = [...setsContainer.querySelectorAll('.set-row')];
     const sets = [];
     for (let row of setRows) {
@@ -393,7 +398,10 @@ async function submitExerciseForm(e) {
         alert('Добавьте хотя бы один подход');
         return;
     }
-
+    const payload = { name, sets };
+    if (description) {
+        payload.description = description;
+    }
     try {
         if (exerciseId) {
             await apiPut(`/workouts/${dayId}/exercises/${exerciseId}`, { name, sets });

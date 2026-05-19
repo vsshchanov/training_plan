@@ -62,6 +62,7 @@ class ExerciseModel(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     workout_day_id = Column(String(36), ForeignKey("workout_days.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
 
     workout_day = relationship("WorkoutDayModel", back_populates="exercises")
     sets = relationship("ExerciseSetModel", back_populates="exercise", cascade="all, delete-orphan",
@@ -71,6 +72,7 @@ class ExerciseModel(Base):
         return {
             "id": self.id,
             "name": self.name,
+            "description": self.description,
             "sets": [s.to_dict() for s in self.sets],
         }
 
@@ -204,7 +206,7 @@ class PostgresStorage(BaseStorage):
         finally:
             session.close()
 
-    def add_exercise(self, day_id: str, name: str, sets: List[dict], user_id: int) -> Optional[dict]:
+    def add_exercise(self, day_id: str, name: str, sets: List[dict], user_id: int, description: str = None) -> Optional[dict]:
         session = self._get_session()
         try:
             day = session.query(WorkoutDayModel).filter(
@@ -217,6 +219,7 @@ class PostgresStorage(BaseStorage):
                 id=str(uuid.uuid4()),
                 workout_day_id=day_id,
                 name=name,
+                description=description,
             )
             session.add(exercise)
             session.flush()
@@ -236,7 +239,7 @@ class PostgresStorage(BaseStorage):
         finally:
             session.close()
 
-    def update_exercise(self, day_id: str, exercise_id: str, name: str, sets: List[dict], user_id: int) -> Optional[dict]:
+    def update_exercise(self, day_id: str, exercise_id: str, name: str, sets: List[dict], user_id: int, description: str = None) -> Optional[dict]:
         session = self._get_session()
         try:
             exercise = session.query(ExerciseModel).join(WorkoutDayModel).filter(
@@ -247,6 +250,7 @@ class PostgresStorage(BaseStorage):
             if not exercise:
                 return None
             exercise.name = name
+            exercise.description = description
             for old_set in exercise.sets:
                 session.delete(old_set)
             for idx, s in enumerate(sets):

@@ -569,3 +569,10 @@ body {
 .btn--logout:hover {
     background: rgba(255,255,255,0.4);
 }
+.exercise-item__desc {
+    color: #555;
+    font-style: italic;
+    font-size: 0.9rem;
+    margin-top: 4px;
+    display: block;
+}
