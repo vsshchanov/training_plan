@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1a1d23"/>
+  <!-- Гриф -->
+  <rect x="56" y="236" width="400" height="40" rx="8" fill="#4caf50"/>
+  <!-- Левый блин -->
+  <rect x="56" y="180" width="36" height="152" rx="8" fill="#fff"/>
+  <!-- Правый блин -->
+  <rect x="420" y="180" width="36" height="152" rx="8" fill="#fff"/>
+  <!-- Замки -->
+  <rect x="100" y="210" width="20" height="92" rx="4" fill="#e0e0e0"/>
+  <rect x="392" y="210" width="20" height="92" rx="4" fill="#e0e0e0"/>
+</svg>

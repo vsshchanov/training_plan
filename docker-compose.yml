@@ -25,6 +25,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       STORAGE_TYPE: postgresql
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432

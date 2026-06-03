@@ -6,6 +6,8 @@
 
 import os
 
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+
 STORAGE_TYPE = os.environ.get("STORAGE_TYPE", "postgresql")
 
 POSTGRES_CONFIG = {
