@@ -11,8 +11,9 @@ __pycache__/
 dist/
 build/
 
-# Файл с секретами (токен ngrok, пароль БД)
+# Файлы с секретами (токен ngrok, пароль БД)
 .env
+.env.prod
 
 # Данные JSON-хранилища (если используется)
 data/
@@ -30,3 +31,14 @@ Thumbs.db
 
 # Логи
 *.log
+
+# Сгенерированные иконки PWA (создаются при запуске контейнера)
+static/icons/*.png
+
+# Alembic
+migrations/__pycache__/
+
+# Планы Claude Code
+.claude/
+
+chat_log.md
