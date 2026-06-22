@@ -152,16 +152,21 @@ async function checkSession() {
 
 function showMainApp() {
     authScreen.style.display = 'none';
-    mainApp.style.display = 'block';
     header.style.display = 'flex';
+    tabNav.style.display = 'flex';
     currentUsernameSpan.textContent = currentUser.username;
-    loadWorkouts();
+    switchTab(activeTab);
+    if (activeTab === 'workouts') loadWorkouts();
 }
 
 function showAuthScreen() {
     authScreen.style.display = 'flex';
     mainApp.style.display = 'none';
+    nutritionApp.style.display = 'none';
+    bmiApp.style.display = 'none';
     header.style.display = 'none';
+    tabNav.style.display = 'none';
+    nutritionLoaded = false;
 }
 
 // ------------- Управление тренировками -------------
@@ -584,6 +589,9 @@ document.addEventListener('keydown', (e) => {
         closeDayModal();
         closeExerciseModal();
         confirmModal.style.display = 'none';
+        document.getElementById('profileModalOverlay').style.display = 'none';
+        document.getElementById('foodModalOverlay').style.display = 'none';
+        document.getElementById('mealTypeModalOverlay').style.display = 'none';
     }
 });
 
@@ -772,6 +780,375 @@ async function renderStatsChart() {
 // ------------- Экспорт CSV -------------
 document.getElementById('btnExport').addEventListener('click', () => {
     window.location.href = API_BASE + '/export';
+});
+
+// ------------- Tab-навигация -------------
+const tabNav = document.getElementById('tabNav');
+const nutritionApp = document.getElementById('nutritionApp');
+let activeTab = 'workouts';
+let nutritionLoaded = false;
+
+tabNav.querySelectorAll('.tab-nav__btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+const bmiApp = document.getElementById('bmiApp');
+
+function switchTab(tab) {
+    activeTab = tab;
+    tabNav.querySelectorAll('.tab-nav__btn').forEach(b => {
+        b.classList.toggle('tab-nav__btn--active', b.dataset.tab === tab);
+    });
+    mainApp.style.display = tab === 'workouts' ? 'block' : 'none';
+    nutritionApp.style.display = tab === 'nutrition' ? 'block' : 'none';
+    bmiApp.style.display = tab === 'bmi' ? 'block' : 'none';
+    if (tab === 'nutrition' && !nutritionLoaded) {
+        nutritionLoaded = true;
+        loadNutritionData();
+    }
+    if (tab === 'bmi' && nutritionProfile) {
+        document.getElementById('bmiWeight').value = nutritionProfile.weight;
+        document.getElementById('bmiHeight').value = nutritionProfile.height;
+    }
+}
+
+// ------------- Питание: профиль и калькулятор -------------
+let nutritionProfile = null;
+let currentNutritionDay = null;
+let nutritionTargets = null;
+let selectedNutritionDate = new Date().toISOString().split('T')[0];
+
+const nutritionSetup = document.getElementById('nutritionSetup');
+const nutritionDashboard = document.getElementById('nutritionDashboard');
+const nutritionTargetsEl = document.getElementById('nutritionTargets');
+const mealsSection = document.getElementById('mealsSection');
+const mealsEmpty = document.getElementById('mealsEmpty');
+const profileModalOverlay = document.getElementById('profileModalOverlay');
+const profileForm = document.getElementById('profileForm');
+
+document.getElementById('btnSetupProfile').addEventListener('click', () => openProfileModal());
+
+document.getElementById('btnDatePrev').addEventListener('click', () => {
+    const d = new Date(selectedNutritionDate);
+    d.setDate(d.getDate() - 1);
+    selectedNutritionDate = d.toISOString().split('T')[0];
+    loadNutritionData();
+});
+document.getElementById('btnDateNext').addEventListener('click', () => {
+    const d = new Date(selectedNutritionDate);
+    d.setDate(d.getDate() + 1);
+    selectedNutritionDate = d.toISOString().split('T')[0];
+    loadNutritionData();
+});
+document.getElementById('btnDateToday').addEventListener('click', () => {
+    selectedNutritionDate = new Date().toISOString().split('T')[0];
+    loadNutritionData();
+});
+document.getElementById('btnProfileCancel').addEventListener('click', () => { profileModalOverlay.style.display = 'none'; });
+profileModalOverlay.addEventListener('click', (e) => { if (e.target === profileModalOverlay) profileModalOverlay.style.display = 'none'; });
+
+function openProfileModal() {
+    if (nutritionProfile) {
+        document.querySelector(`input[name="profileSex"][value="${nutritionProfile.sex}"]`).checked = true;
+        document.getElementById('profileWeight').value = nutritionProfile.weight;
+        document.getElementById('profileHeight').value = nutritionProfile.height;
+        document.getElementById('profileAge').value = nutritionProfile.age;
+        document.getElementById('profileActivity').value = nutritionProfile.activity_level;
+        document.querySelector(`input[name="profileGoal"][value="${nutritionProfile.goal}"]`).checked = true;
+    }
+    profileModalOverlay.style.display = 'flex';
+}
+
+profileForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        sex: document.querySelector('input[name="profileSex"]:checked').value,
+        weight: parseFloat(document.getElementById('profileWeight').value),
+        height: parseFloat(document.getElementById('profileHeight').value),
+        age: parseInt(document.getElementById('profileAge').value),
+        activity_level: parseFloat(document.getElementById('profileActivity').value),
+        goal: document.querySelector('input[name="profileGoal"]:checked').value,
+    };
+    try {
+        const res = await apiPost('/nutrition/profile', data);
+        nutritionProfile = res.profile;
+        profileModalOverlay.style.display = 'none';
+        showToast('Параметры сохранены');
+        await loadNutritionData();
+    } catch (err) {
+        showToast('Ошибка: ' + err.message, 'error');
+    }
+});
+
+// ------------- Питание: загрузка данных и дашборд -------------
+const MEAL_LABELS = { breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус' };
+
+async function loadNutritionData() {
+    try {
+        const profileRes = await apiGet('/nutrition/profile');
+        nutritionProfile = profileRes.profile;
+
+        if (!nutritionProfile) {
+            nutritionSetup.style.display = 'block';
+            nutritionDashboard.style.display = 'none';
+            return;
+        }
+
+        nutritionSetup.style.display = 'none';
+        nutritionDashboard.style.display = 'block';
+
+        const todayRes = await apiGet(`/nutrition/today?date=${selectedNutritionDate}`);
+        currentNutritionDay = todayRes.day;
+        nutritionTargets = todayRes.targets;
+
+        const dateLabel = document.getElementById('currentDateLabel');
+        const isToday = selectedNutritionDate === new Date().toISOString().split('T')[0];
+        dateLabel.textContent = isToday ? 'Сегодня' : formatDate(selectedNutritionDate);
+
+        renderNutritionDashboard();
+    } catch (err) {
+        console.error(err);
+        showToast('Ошибка загрузки питания', 'error');
+    }
+}
+
+function renderNutritionDashboard() {
+    if (!currentNutritionDay || !nutritionTargets) return;
+
+    const d = currentNutritionDay;
+    const t = nutritionTargets;
+    const calPct = Math.min(100, Math.round(d.total_calories / t.goal_calories * 100));
+    const proPct = Math.min(100, Math.round(d.total_protein / t.protein_grams * 100));
+    const fatPct = Math.min(100, Math.round(d.total_fat / t.fat_grams * 100));
+    const carbPct = Math.min(100, Math.round(d.total_carbs / t.carb_grams * 100));
+    const calRemain = Math.round(t.goal_calories - d.total_calories);
+    const calOver = d.total_calories > t.goal_calories;
+    const proOver = d.total_protein > t.protein_grams;
+    const fatOver = d.total_fat > t.fat_grams;
+    const carbOver = d.total_carbs > t.carb_grams;
+
+    nutritionTargetsEl.innerHTML = `
+        <div class="nutrition-targets__header">
+            <span class="nutrition-targets__title ${calOver ? 'text--danger' : ''}">Сегодня: ${calRemain > 0 ? 'осталось ' + calRemain + ' ккал' : 'превышение на ' + Math.abs(calRemain) + ' ккал!'}</span>
+            <button class="nutrition-targets__edit" id="btnEditProfile">Параметры</button>
+        </div>
+        <div class="progress-row">
+            <div class="progress-row__label">
+                <span>Калории</span>
+                <strong class="${calOver ? 'text--danger' : ''}">${Math.round(d.total_calories)} / ${t.goal_calories} ккал</strong>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-bar__fill ${calOver ? 'progress-bar__fill--over' : 'progress-bar__fill--cal'}" style="width:${Math.min(calPct, 100)}%"></div>
+            </div>
+        </div>
+        ${calOver ? '<p class="nutrition-warning">Дневная норма калорий превышена!</p>' : ''}
+        <div class="macro-grid">
+            <div class="progress-row">
+                <div class="progress-row__label">
+                    <span>Белки</span>
+                    <strong class="${proOver ? 'text--danger' : ''}">${Math.round(d.total_protein)} / ${t.protein_grams} г</strong>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar__fill ${proOver ? 'progress-bar__fill--over' : 'progress-bar__fill--pro'}" style="width:${Math.min(proPct, 100)}%"></div>
+                </div>
+            </div>
+            <div class="progress-row">
+                <div class="progress-row__label">
+                    <span>Жиры</span>
+                    <strong class="${fatOver ? 'text--danger' : ''}">${Math.round(d.total_fat)} / ${t.fat_grams} г</strong>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar__fill ${fatOver ? 'progress-bar__fill--over' : 'progress-bar__fill--fat'}" style="width:${Math.min(fatPct, 100)}%"></div>
+                </div>
+            </div>
+            <div class="progress-row">
+                <div class="progress-row__label">
+                    <span>Углеводы</span>
+                    <strong class="${carbOver ? 'text--danger' : ''}">${Math.round(d.total_carbs)} / ${t.carb_grams} г</strong>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar__fill ${carbOver ? 'progress-bar__fill--over' : 'progress-bar__fill--carb'}" style="width:${Math.min(carbPct, 100)}%"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    nutritionTargetsEl.querySelector('#btnEditProfile').addEventListener('click', openProfileModal);
+
+    renderMeals();
+}
+
+// ------------- Питание: приёмы пищи -------------
+const mealTypeModalOverlay = document.getElementById('mealTypeModalOverlay');
+
+document.getElementById('btnAddMeal').addEventListener('click', () => { mealTypeModalOverlay.style.display = 'flex'; });
+document.getElementById('btnMealTypeCancel').addEventListener('click', () => { mealTypeModalOverlay.style.display = 'none'; });
+mealTypeModalOverlay.addEventListener('click', (e) => { if (e.target === mealTypeModalOverlay) mealTypeModalOverlay.style.display = 'none'; });
+
+mealTypeModalOverlay.querySelectorAll('[data-type]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        mealTypeModalOverlay.style.display = 'none';
+        try {
+            await apiPost(`/nutrition/days/${currentNutritionDay.id}/meals`, { meal_type: btn.dataset.type });
+            await loadNutritionData();
+            showToast(`${MEAL_LABELS[btn.dataset.type]} добавлен`);
+        } catch (err) {
+            showToast('Ошибка: ' + err.message, 'error');
+        }
+    });
+});
+
+function renderMeals() {
+    const meals = currentNutritionDay.meals || [];
+    mealsSection.innerHTML = '';
+    mealsEmpty.style.display = meals.length === 0 ? 'block' : 'none';
+
+    meals.forEach(meal => {
+        const card = document.createElement('div');
+        card.className = 'meal-card meal-card--expanded';
+        const foods = meal.food_items || [];
+        const kcalSum = Math.round(meal.total_calories);
+
+        card.innerHTML = `
+            <div class="meal-card__header">
+                <div class="meal-card__info">
+                    <span class="meal-card__type meal-card__type--${meal.meal_type}">${MEAL_LABELS[meal.meal_type] || meal.meal_type}</span>
+                    <span class="meal-card__summary">${kcalSum} ккал · ${foods.length} продукт.</span>
+                </div>
+                <div class="meal-card__actions">
+                    <button class="btn-icon btn-icon--danger" data-action="del-meal" title="Удалить">✕</button>
+                    <span class="meal-card__expand">▼</span>
+                </div>
+            </div>
+            <div class="meal-card__body">
+                <div class="food-list">
+                    ${foods.map(f => `
+                        <div class="food-item" data-food-id="${f.id}">
+                            <div class="food-item__info">
+                                <span class="food-item__name">${escapeHTML(f.name)} · ${f.weight_grams}г</span>
+                                <span class="food-item__macros">${f.actual_calories} ккал · Б ${f.actual_protein} · Ж ${f.actual_fat} · У ${f.actual_carbs}</span>
+                            </div>
+                            <div class="food-item__actions">
+                                <button class="btn-icon btn-icon--edit" data-action="edit-food" data-food-id="${f.id}" title="Редактировать">✎</button>
+                                <button class="btn-icon btn-icon--danger" data-action="del-food" data-food-id="${f.id}" title="Удалить">✕</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn--add-food" data-action="add-food">+ Добавить продукт</button>
+            </div>
+        `;
+
+        const header = card.querySelector('.meal-card__header');
+        header.addEventListener('click', (e) => {
+            if (e.target.closest('[data-action]')) return;
+            card.classList.toggle('meal-card--expanded');
+        });
+
+        card.querySelector('[data-action="del-meal"]').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const ok = await showConfirm(`Удалить ${MEAL_LABELS[meal.meal_type]}?`);
+            if (!ok) return;
+            try {
+                await apiDelete(`/nutrition/days/${currentNutritionDay.id}/meals/${meal.id}`);
+                await loadNutritionData();
+                showToast('Приём пищи удалён');
+            } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
+        });
+
+        card.querySelector('[data-action="add-food"]').addEventListener('click', () => openFoodModal(meal.id));
+
+        card.querySelectorAll('[data-action="edit-food"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const f = foods.find(x => x.id === btn.dataset.foodId);
+                if (f) openFoodModal(meal.id, f);
+            });
+        });
+
+        card.querySelectorAll('[data-action="del-food"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const ok = await showConfirm('Удалить продукт?');
+                if (!ok) return;
+                try {
+                    await apiDelete(`/nutrition/meals/${meal.id}/foods/${btn.dataset.foodId}`);
+                    await loadNutritionData();
+                    showToast('Продукт удалён');
+                } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
+            });
+        });
+
+        mealsSection.appendChild(card);
+    });
+}
+
+// ------------- Питание: продукты (CRUD) -------------
+const foodModalOverlay = document.getElementById('foodModalOverlay');
+const foodForm = document.getElementById('foodForm');
+
+document.getElementById('btnFoodCancel').addEventListener('click', () => { foodModalOverlay.style.display = 'none'; });
+foodModalOverlay.addEventListener('click', (e) => { if (e.target === foodModalOverlay) foodModalOverlay.style.display = 'none'; });
+
+function openFoodModal(mealId, food = null) {
+    document.getElementById('foodMealId').value = mealId;
+    document.getElementById('foodItemId').value = food ? food.id : '';
+    document.getElementById('foodModalTitle').textContent = food ? 'Редактировать продукт' : 'Добавить продукт';
+    document.getElementById('foodName').value = food ? food.name : '';
+    document.getElementById('foodWeight').value = food ? food.weight_grams : '';
+    document.getElementById('foodCal').value = food ? food.calories_per_100g : '';
+    document.getElementById('foodPro').value = food ? food.protein_per_100g : '';
+    document.getElementById('foodFat').value = food ? food.fat_per_100g : '';
+    document.getElementById('foodCarb').value = food ? food.carbs_per_100g : '';
+    foodModalOverlay.style.display = 'flex';
+}
+
+foodForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const mealId = document.getElementById('foodMealId').value;
+    const foodId = document.getElementById('foodItemId').value;
+    const data = {
+        name: document.getElementById('foodName').value.trim(),
+        weight_grams: parseFloat(document.getElementById('foodWeight').value),
+        calories_per_100g: parseFloat(document.getElementById('foodCal').value),
+        protein_per_100g: parseFloat(document.getElementById('foodPro').value),
+        fat_per_100g: parseFloat(document.getElementById('foodFat').value),
+        carbs_per_100g: parseFloat(document.getElementById('foodCarb').value),
+    };
+    try {
+        if (foodId) {
+            await apiPut(`/nutrition/meals/${mealId}/foods/${foodId}`, data);
+        } else {
+            await apiPost(`/nutrition/meals/${mealId}/foods`, data);
+        }
+        foodModalOverlay.style.display = 'none';
+        await loadNutritionData();
+        showToast(foodId ? 'Продукт обновлён' : 'Продукт добавлен');
+    } catch (err) {
+        showToast('Ошибка: ' + err.message, 'error');
+    }
+});
+
+// ------------- ИМТ (индекс массы тела) -------------
+document.getElementById('bmiForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const weight = parseFloat(document.getElementById('bmiWeight').value);
+    const heightCm = parseFloat(document.getElementById('bmiHeight').value);
+    const heightM = heightCm / 100;
+    const bmi = weight / (heightM * heightM);
+    const bmiRound = Math.round(bmi * 10) / 10;
+
+    let label, color;
+    if (bmi < 18.5) { label = 'Дефицит массы тела'; color = '#1565c0'; }
+    else if (bmi < 25) { label = 'Нормальный вес'; color = '#2e7d32'; }
+    else if (bmi < 30) { label = 'Избыточный вес'; color = '#e65100'; }
+    else { label = 'Ожирение'; color = '#c62828'; }
+
+    document.getElementById('bmiValue').textContent = bmiRound;
+    document.getElementById('bmiValue').style.color = color;
+    document.getElementById('bmiLabel').textContent = label;
+    document.getElementById('bmiLabel').style.color = color;
+
+    const markerPct = Math.max(0, Math.min(100, (bmi - 16) / (40 - 16) * 100));
+    document.getElementById('bmiMarker').style.left = `calc(${markerPct}% - 2px)`;
+    document.getElementById('bmiResult').style.display = 'block';
 });
 
 // ------------- PWA Service Worker -------------

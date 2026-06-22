@@ -36,6 +36,13 @@
         </div>
     </header>
 
+    <!-- Tab-навигация -->
+    <nav id="tabNav" class="tab-nav" style="display:none;">
+        <button class="tab-nav__btn tab-nav__btn--active" data-tab="workouts">Тренировки</button>
+        <button class="tab-nav__btn" data-tab="nutrition">Питание</button>
+        <button class="tab-nav__btn" data-tab="bmi">ИМТ</button>
+    </nav>
+
     <!-- Экран авторизации -->
     <div id="authScreen" class="auth-container">
         <div class="auth-card">
@@ -73,6 +80,156 @@
             <p>Нажмите «+ Новый день», чтобы добавить первую запись.</p>
         </div>
     </main>
+
+    <!-- Секция: Питание -->
+    <section id="nutritionApp" style="display:none;" class="container">
+        <div id="nutritionSetup" class="nutrition-setup" style="display:none;">
+            <h2>Нутрициолог</h2>
+            <p>Для начала заполните параметры тела, чтобы рассчитать дневную норму калорий.</p>
+            <button class="btn btn--save" id="btnSetupProfile">Заполнить параметры</button>
+        </div>
+
+        <div id="nutritionDashboard" style="display:none;">
+            <div class="date-nav">
+                <button class="btn-icon" id="btnDatePrev" title="Предыдущий день">◀</button>
+                <span id="currentDateLabel" class="date-nav__label"></span>
+                <button class="btn-icon" id="btnDateNext" title="Следующий день">▶</button>
+                <button class="btn btn--cancel btn--sm" id="btnDateToday">Сегодня</button>
+            </div>
+            <div class="nutrition-targets" id="nutritionTargets"></div>
+            <button class="btn-add-day" id="btnAddMeal">
+                <span class="btn-add-day__icon">+</span>
+                <span class="btn-add-day__text">Добавить приём пищи</span>
+            </button>
+            <div id="mealsSection"></div>
+            <div class="empty-state" id="mealsEmpty" style="display:none;">
+                <p>Нет приёмов пищи за сегодня. Добавьте первый!</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Секция: ИМТ -->
+    <section id="bmiApp" style="display:none;" class="container">
+        <div class="bmi-card">
+            <h2 style="margin-bottom:16px;">Индекс массы тела</h2>
+            <form id="bmiForm">
+                <label class="form-label" for="bmiWeight">Вес (кг):</label>
+                <input class="form-input" type="number" id="bmiWeight" step="0.1" min="20" max="300" required>
+                <label class="form-label" for="bmiHeight">Рост (см):</label>
+                <input class="form-input" type="number" id="bmiHeight" min="100" max="250" required>
+                <button type="submit" class="btn btn--save" style="width:100%;">Рассчитать</button>
+            </form>
+            <div id="bmiResult" style="display:none;margin-top:20px;">
+                <div class="bmi-result__value" id="bmiValue"></div>
+                <div class="bmi-result__label" id="bmiLabel"></div>
+                <div class="bmi-scale">
+                    <div class="bmi-scale__bar">
+                        <div class="bmi-scale__marker" id="bmiMarker"></div>
+                    </div>
+                    <div class="bmi-scale__labels">
+                        <span>16</span><span>18.5</span><span>25</span><span>30</span><span>40</span>
+                    </div>
+                </div>
+                <div class="bmi-categories">
+                    <div class="bmi-cat bmi-cat--under">Дефицит<br>&lt;18.5</div>
+                    <div class="bmi-cat bmi-cat--normal">Норма<br>18.5–25</div>
+                    <div class="bmi-cat bmi-cat--over">Избыток<br>25–30</div>
+                    <div class="bmi-cat bmi-cat--obese">Ожирение<br>&gt;30</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Модальное окно: Профиль питания (калькулятор) -->
+    <div class="modal-overlay" id="profileModalOverlay" style="display:none;">
+        <div class="modal">
+            <h2 class="modal__title">Параметры тела</h2>
+            <form id="profileForm">
+                <label class="form-label">Пол:</label>
+                <div style="display:flex;gap:16px;margin-bottom:12px;">
+                    <label><input type="radio" name="profileSex" value="male" checked> Мужской</label>
+                    <label><input type="radio" name="profileSex" value="female"> Женский</label>
+                </div>
+                <label class="form-label" for="profileWeight">Вес (кг):</label>
+                <input class="form-input" type="number" id="profileWeight" step="0.1" min="30" max="300" required>
+                <label class="form-label" for="profileHeight">Рост (см):</label>
+                <input class="form-input" type="number" id="profileHeight" min="100" max="250" required>
+                <label class="form-label" for="profileAge">Возраст:</label>
+                <input class="form-input" type="number" id="profileAge" min="10" max="120" required>
+                <label class="form-label" for="profileActivity">Уровень активности:</label>
+                <select class="form-input" id="profileActivity" required>
+                    <option value="1.2">Сидячий образ жизни</option>
+                    <option value="1.375">Лёгкие тренировки 1-3 раза/нед</option>
+                    <option value="1.55" selected>Умеренные тренировки 3-5 раз/нед</option>
+                    <option value="1.725">Тяжёлые тренировки 6-7 раз/нед</option>
+                    <option value="1.9">Очень тяжёлые / физическая работа</option>
+                </select>
+                <label class="form-label">Цель:</label>
+                <div style="display:flex;gap:16px;margin-bottom:12px;">
+                    <label><input type="radio" name="profileGoal" value="loss"> Похудение</label>
+                    <label><input type="radio" name="profileGoal" value="maintenance" checked> Поддержание</label>
+                    <label><input type="radio" name="profileGoal" value="gain"> Набор массы</label>
+                </div>
+                <div class="modal__actions">
+                    <button type="button" class="btn btn--cancel" id="btnProfileCancel">Отмена</button>
+                    <button type="submit" class="btn btn--save">Рассчитать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Выбор типа приёма пищи -->
+    <div class="modal-overlay" id="mealTypeModalOverlay" style="display:none;">
+        <div class="modal modal--confirm">
+            <h2 class="modal__title" style="text-align:center;">Тип приёма пищи</h2>
+            <div class="meal-type-grid">
+                <button class="btn btn--meal-type" data-type="breakfast" style="background:#fff3e0;color:#e65100;">Завтрак</button>
+                <button class="btn btn--meal-type" data-type="lunch" style="background:#e8f5e9;color:#2e7d32;">Обед</button>
+                <button class="btn btn--meal-type" data-type="dinner" style="background:#e3f2fd;color:#1565c0;">Ужин</button>
+                <button class="btn btn--meal-type" data-type="snack" style="background:#f3e5f5;color:#7b1fa2;">Перекус</button>
+            </div>
+            <div class="modal__actions" style="margin-top:12px;">
+                <button type="button" class="btn btn--cancel" id="btnMealTypeCancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Добавление продукта -->
+    <div class="modal-overlay" id="foodModalOverlay" style="display:none;">
+        <div class="modal">
+            <h2 class="modal__title" id="foodModalTitle">Добавить продукт</h2>
+            <form id="foodForm">
+                <input type="hidden" id="foodMealId" value="">
+                <input type="hidden" id="foodItemId" value="">
+                <label class="form-label" for="foodName">Название:</label>
+                <input class="form-input" type="text" id="foodName" placeholder="Куриная грудка" required>
+                <label class="form-label" for="foodWeight">Вес (г):</label>
+                <input class="form-input" type="number" id="foodWeight" step="1" min="1" placeholder="150" required>
+                <div class="food-macros-grid">
+                    <div>
+                        <label class="form-label" for="foodCal">Ккал/100г:</label>
+                        <input class="form-input" type="number" id="foodCal" step="0.1" min="0" required>
+                    </div>
+                    <div>
+                        <label class="form-label" for="foodPro">Белки/100г:</label>
+                        <input class="form-input" type="number" id="foodPro" step="0.1" min="0" required>
+                    </div>
+                    <div>
+                        <label class="form-label" for="foodFat">Жиры/100г:</label>
+                        <input class="form-input" type="number" id="foodFat" step="0.1" min="0" required>
+                    </div>
+                    <div>
+                        <label class="form-label" for="foodCarb">Углеводы/100г:</label>
+                        <input class="form-input" type="number" id="foodCarb" step="0.1" min="0" required>
+                    </div>
+                </div>
+                <div class="modal__actions">
+                    <button type="button" class="btn btn--cancel" id="btnFoodCancel">Отмена</button>
+                    <button type="submit" class="btn btn--save">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Модальное окно: День -->
     <div class="modal-overlay" id="modalOverlay" style="display: none;">

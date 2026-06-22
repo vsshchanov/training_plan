@@ -23,6 +23,8 @@ class UserModel(Base, UserMixin):
     password_hash = Column(String(255), nullable=False)
 
     workout_days = relationship("WorkoutDayModel", back_populates="user", cascade="all, delete-orphan")
+    nutrition_profile = relationship("NutritionProfileModel", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    nutrition_days = relationship("NutritionDayModel", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -155,6 +157,128 @@ class TemplateSetModel(Base):
             "reps": self.reps,
             "weight": self.weight,
             "rest_time": self.rest_time,
+        }
+
+
+# ---------- Модели питания ----------
+class NutritionProfileModel(Base):
+    __tablename__ = "user_nutrition_profiles"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    sex = Column(String(10), nullable=False)
+    weight = Column(Float, nullable=False)
+    height = Column(Float, nullable=False)
+    age = Column(Integer, nullable=False)
+    activity_level = Column(Float, nullable=False)
+    goal = Column(String(20), nullable=False)
+
+    user = relationship("UserModel", back_populates="nutrition_profile")
+
+    def to_dict(self) -> dict:
+        if self.sex == "male":
+            bmr = 10 * self.weight + 6.25 * self.height - 5 * self.age + 5
+        else:
+            bmr = 10 * self.weight + 6.25 * self.height - 5 * self.age - 161
+        tdee = bmr * self.activity_level
+        goal_mult = {"loss": 0.825, "maintenance": 1.0, "gain": 1.125}
+        goal_cal = round(tdee * goal_mult.get(self.goal, 1.0))
+        return {
+            "id": self.id,
+            "sex": self.sex,
+            "weight": self.weight,
+            "height": self.height,
+            "age": self.age,
+            "activity_level": self.activity_level,
+            "goal": self.goal,
+            "bmr": round(bmr),
+            "tdee": round(tdee),
+            "goal_calories": goal_cal,
+            "protein_grams": round(goal_cal * 0.30 / 4),
+            "fat_grams": round(goal_cal * 0.25 / 9),
+            "carb_grams": round(goal_cal * 0.45 / 4),
+        }
+
+
+class NutritionDayModel(Base):
+    __tablename__ = "nutrition_days"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    date = Column(Date, nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_user_date"),)
+
+    user = relationship("UserModel", back_populates="nutrition_days")
+    meals = relationship("MealModel", back_populates="nutrition_day", cascade="all, delete-orphan",
+                         order_by="MealModel.order")
+
+    def to_dict(self) -> dict:
+        meals_list = [m.to_dict() for m in self.meals]
+        total_cal = sum(m["total_calories"] for m in meals_list)
+        total_pro = sum(m["total_protein"] for m in meals_list)
+        total_fat = sum(m["total_fat"] for m in meals_list)
+        total_carb = sum(m["total_carbs"] for m in meals_list)
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "date": self.date.isoformat() if self.date else "",
+            "meals": meals_list,
+            "total_calories": round(total_cal, 1),
+            "total_protein": round(total_pro, 1),
+            "total_fat": round(total_fat, 1),
+            "total_carbs": round(total_carb, 1),
+        }
+
+
+class MealModel(Base):
+    __tablename__ = "meals"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    nutrition_day_id = Column(String(36), ForeignKey("nutrition_days.id", ondelete="CASCADE"), nullable=False)
+    meal_type = Column(String(20), nullable=False)
+    order = Column(Integer, nullable=False, default=0)
+
+    nutrition_day = relationship("NutritionDayModel", back_populates="meals")
+    food_items = relationship("FoodItemModel", back_populates="meal", cascade="all, delete-orphan")
+
+    def to_dict(self) -> dict:
+        foods = [f.to_dict() for f in self.food_items]
+        return {
+            "id": self.id,
+            "meal_type": self.meal_type,
+            "food_items": foods,
+            "total_calories": round(sum(f["actual_calories"] for f in foods), 1),
+            "total_protein": round(sum(f["actual_protein"] for f in foods), 1),
+            "total_fat": round(sum(f["actual_fat"] for f in foods), 1),
+            "total_carbs": round(sum(f["actual_carbs"] for f in foods), 1),
+        }
+
+
+class FoodItemModel(Base):
+    __tablename__ = "food_items"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meal_id = Column(String(36), ForeignKey("meals.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    weight_grams = Column(Float, nullable=False)
+    calories_per_100g = Column(Float, nullable=False)
+    protein_per_100g = Column(Float, nullable=False)
+    fat_per_100g = Column(Float, nullable=False)
+    carbs_per_100g = Column(Float, nullable=False)
+
+    meal = relationship("MealModel", back_populates="food_items")
+
+    def to_dict(self) -> dict:
+        w = self.weight_grams / 100
+        return {
+            "id": self.id,
+            "name": self.name,
+            "weight_grams": self.weight_grams,
+            "calories_per_100g": self.calories_per_100g,
+            "protein_per_100g": self.protein_per_100g,
+            "fat_per_100g": self.fat_per_100g,
+            "carbs_per_100g": self.carbs_per_100g,
+            "actual_calories": round(self.calories_per_100g * w, 1),
+            "actual_protein": round(self.protein_per_100g * w, 1),
+            "actual_fat": round(self.fat_per_100g * w, 1),
+            "actual_carbs": round(self.carbs_per_100g * w, 1),
         }
 
 
@@ -553,5 +677,195 @@ class PostgresStorage(BaseStorage):
             session.commit()
             session.refresh(new_day)
             return new_day.to_dict()
+        finally:
+            session.close()
+
+    # ─── Питание ───
+    def get_nutrition_profile(self, user_id: int) -> Optional[dict]:
+        session = self._get_session()
+        try:
+            p = session.query(NutritionProfileModel).filter(
+                NutritionProfileModel.user_id == user_id
+            ).first()
+            return p.to_dict() if p else None
+        finally:
+            session.close()
+
+    def upsert_nutrition_profile(self, user_id: int, data: dict) -> dict:
+        session = self._get_session()
+        try:
+            p = session.query(NutritionProfileModel).filter(
+                NutritionProfileModel.user_id == user_id
+            ).first()
+            if p:
+                p.sex = data["sex"]
+                p.weight = float(data["weight"])
+                p.height = float(data["height"])
+                p.age = int(data["age"])
+                p.activity_level = float(data["activity_level"])
+                p.goal = data["goal"]
+            else:
+                p = NutritionProfileModel(
+                    id=str(uuid.uuid4()),
+                    user_id=user_id,
+                    sex=data["sex"],
+                    weight=float(data["weight"]),
+                    height=float(data["height"]),
+                    age=int(data["age"]),
+                    activity_level=float(data["activity_level"]),
+                    goal=data["goal"],
+                )
+                session.add(p)
+            session.commit()
+            session.refresh(p)
+            return p.to_dict()
+        finally:
+            session.close()
+
+    def get_nutrition_days(self, user_id: int) -> List[dict]:
+        session = self._get_session()
+        try:
+            days = session.query(NutritionDayModel).filter(
+                NutritionDayModel.user_id == user_id
+            ).order_by(NutritionDayModel.date.desc()).all()
+            return [d.to_dict() for d in days]
+        finally:
+            session.close()
+
+    def get_or_create_nutrition_day(self, user_id: int, date: str) -> dict:
+        session = self._get_session()
+        try:
+            d = session.query(NutritionDayModel).filter(
+                NutritionDayModel.user_id == user_id,
+                NutritionDayModel.date == date_type.fromisoformat(date),
+            ).first()
+            if not d:
+                d = NutritionDayModel(
+                    id=str(uuid.uuid4()),
+                    user_id=user_id,
+                    date=date_type.fromisoformat(date),
+                )
+                session.add(d)
+                session.commit()
+                session.refresh(d)
+            return d.to_dict()
+        finally:
+            session.close()
+
+    def delete_nutrition_day(self, day_id: str, user_id: int) -> bool:
+        session = self._get_session()
+        try:
+            d = session.query(NutritionDayModel).filter(
+                NutritionDayModel.id == day_id,
+                NutritionDayModel.user_id == user_id,
+            ).first()
+            if d:
+                session.delete(d)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+
+    def create_meal(self, day_id: str, meal_type: str, user_id: int) -> Optional[dict]:
+        session = self._get_session()
+        try:
+            day = session.query(NutritionDayModel).filter(
+                NutritionDayModel.id == day_id,
+                NutritionDayModel.user_id == user_id,
+            ).first()
+            if not day:
+                return None
+            existing = session.query(MealModel).filter(MealModel.nutrition_day_id == day_id).count()
+            meal = MealModel(
+                id=str(uuid.uuid4()),
+                nutrition_day_id=day_id,
+                meal_type=meal_type,
+                order=existing,
+            )
+            session.add(meal)
+            session.commit()
+            session.refresh(meal)
+            return meal.to_dict()
+        finally:
+            session.close()
+
+    def delete_meal(self, day_id: str, meal_id: str, user_id: int) -> bool:
+        session = self._get_session()
+        try:
+            meal = session.query(MealModel).join(NutritionDayModel).filter(
+                MealModel.id == meal_id,
+                MealModel.nutrition_day_id == day_id,
+                NutritionDayModel.user_id == user_id,
+            ).first()
+            if meal:
+                session.delete(meal)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+
+    def add_food_item(self, meal_id: str, data: dict, user_id: int) -> Optional[dict]:
+        session = self._get_session()
+        try:
+            meal = session.query(MealModel).join(NutritionDayModel).filter(
+                MealModel.id == meal_id,
+                NutritionDayModel.user_id == user_id,
+            ).first()
+            if not meal:
+                return None
+            item = FoodItemModel(
+                id=str(uuid.uuid4()),
+                meal_id=meal_id,
+                name=data["name"],
+                weight_grams=float(data["weight_grams"]),
+                calories_per_100g=float(data["calories_per_100g"]),
+                protein_per_100g=float(data["protein_per_100g"]),
+                fat_per_100g=float(data["fat_per_100g"]),
+                carbs_per_100g=float(data["carbs_per_100g"]),
+            )
+            session.add(item)
+            session.commit()
+            session.refresh(item)
+            return item.to_dict()
+        finally:
+            session.close()
+
+    def update_food_item(self, meal_id: str, food_id: str, data: dict, user_id: int) -> Optional[dict]:
+        session = self._get_session()
+        try:
+            item = session.query(FoodItemModel).join(MealModel).join(NutritionDayModel).filter(
+                FoodItemModel.id == food_id,
+                FoodItemModel.meal_id == meal_id,
+                NutritionDayModel.user_id == user_id,
+            ).first()
+            if not item:
+                return None
+            item.name = data["name"]
+            item.weight_grams = float(data["weight_grams"])
+            item.calories_per_100g = float(data["calories_per_100g"])
+            item.protein_per_100g = float(data["protein_per_100g"])
+            item.fat_per_100g = float(data["fat_per_100g"])
+            item.carbs_per_100g = float(data["carbs_per_100g"])
+            session.commit()
+            session.refresh(item)
+            return item.to_dict()
+        finally:
+            session.close()
+
+    def delete_food_item(self, meal_id: str, food_id: str, user_id: int) -> bool:
+        session = self._get_session()
+        try:
+            item = session.query(FoodItemModel).join(MealModel).join(NutritionDayModel).filter(
+                FoodItemModel.id == food_id,
+                FoodItemModel.meal_id == meal_id,
+                NutritionDayModel.user_id == user_id,
+            ).first()
+            if item:
+                session.delete(item)
+                session.commit()
+                return True
+            return False
         finally:
             session.close()

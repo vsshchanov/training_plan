@@ -237,5 +237,112 @@ def export_csv():
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+# ── Питание / Nutrition ──
+@app.route("/api/nutrition/profile", methods=["GET"])
+@login_required
+def get_nutrition_profile():
+    profile = storage.get_nutrition_profile(current_user.id)
+    return jsonify({"profile": profile})
+
+@app.route("/api/nutrition/profile", methods=["POST"])
+@login_required
+def upsert_nutrition_profile():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Данные обязательны"}), 400
+    required = ["sex", "weight", "height", "age", "activity_level", "goal"]
+    for f in required:
+        if f not in data:
+            return jsonify({"error": f"Поле '{f}' обязательно"}), 400
+    if data["sex"] not in ("male", "female"):
+        return jsonify({"error": "sex должен быть 'male' или 'female'"}), 400
+    if float(data["activity_level"]) not in (1.2, 1.375, 1.55, 1.725, 1.9):
+        return jsonify({"error": "Некорректный уровень активности"}), 400
+    if data["goal"] not in ("loss", "maintenance", "gain"):
+        return jsonify({"error": "goal должен быть 'loss', 'maintenance' или 'gain'"}), 400
+    profile = storage.upsert_nutrition_profile(current_user.id, data)
+    return jsonify({"profile": profile}), 201
+
+@app.route("/api/nutrition/days", methods=["GET"])
+@login_required
+def get_nutrition_days():
+    return jsonify(storage.get_nutrition_days(current_user.id))
+
+@app.route("/api/nutrition/today", methods=["GET"])
+@login_required
+def get_nutrition_today():
+    target_date = request.args.get("date", date.today().isoformat())
+    day = storage.get_or_create_nutrition_day(current_user.id, target_date)
+    profile = storage.get_nutrition_profile(current_user.id)
+    targets = None
+    if profile:
+        targets = {
+            "goal_calories": profile["goal_calories"],
+            "protein_grams": profile["protein_grams"],
+            "fat_grams": profile["fat_grams"],
+            "carb_grams": profile["carb_grams"],
+        }
+    return jsonify({"day": day, "targets": targets})
+
+@app.route("/api/nutrition/days/<day_id>", methods=["DELETE"])
+@login_required
+def delete_nutrition_day(day_id):
+    if not storage.delete_nutrition_day(day_id, current_user.id):
+        return jsonify({"error": "День не найден или доступ запрещён"}), 404
+    return jsonify({"message": "День удалён"})
+
+@app.route("/api/nutrition/days/<day_id>/meals", methods=["POST"])
+@login_required
+def create_meal(day_id):
+    data = request.get_json()
+    if not data or "meal_type" not in data:
+        return jsonify({"error": "Поле 'meal_type' обязательно"}), 400
+    if data["meal_type"] not in ("breakfast", "lunch", "dinner", "snack"):
+        return jsonify({"error": "meal_type: breakfast, lunch, dinner или snack"}), 400
+    meal = storage.create_meal(day_id, data["meal_type"], current_user.id)
+    if meal is None:
+        return jsonify({"error": "День не найден или доступ запрещён"}), 404
+    return jsonify(meal), 201
+
+@app.route("/api/nutrition/days/<day_id>/meals/<meal_id>", methods=["DELETE"])
+@login_required
+def delete_meal(day_id, meal_id):
+    if not storage.delete_meal(day_id, meal_id, current_user.id):
+        return jsonify({"error": "Приём пищи не найден или доступ запрещён"}), 404
+    return jsonify({"message": "Приём пищи удалён"})
+
+@app.route("/api/nutrition/meals/<meal_id>/foods", methods=["POST"])
+@login_required
+def add_food_item(meal_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Данные обязательны"}), 400
+    required = ["name", "weight_grams", "calories_per_100g", "protein_per_100g", "fat_per_100g", "carbs_per_100g"]
+    for f in required:
+        if f not in data:
+            return jsonify({"error": f"Поле '{f}' обязательно"}), 400
+    item = storage.add_food_item(meal_id, data, current_user.id)
+    if item is None:
+        return jsonify({"error": "Приём пищи не найден или доступ запрещён"}), 404
+    return jsonify(item), 201
+
+@app.route("/api/nutrition/meals/<meal_id>/foods/<food_id>", methods=["PUT"])
+@login_required
+def update_food_item(meal_id, food_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Данные обязательны"}), 400
+    updated = storage.update_food_item(meal_id, food_id, data, current_user.id)
+    if updated is None:
+        return jsonify({"error": "Продукт не найден или доступ запрещён"}), 404
+    return jsonify(updated)
+
+@app.route("/api/nutrition/meals/<meal_id>/foods/<food_id>", methods=["DELETE"])
+@login_required
+def delete_food_item(meal_id, food_id):
+    if not storage.delete_food_item(meal_id, food_id, current_user.id):
+        return jsonify({"error": "Продукт не найден или доступ запрещён"}), 404
+    return jsonify({"message": "Продукт удалён"})
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

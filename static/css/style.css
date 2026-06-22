@@ -530,3 +530,302 @@ body {
     .btn--stats { display: none; }
     .filter-bar__date { display: none; }
 }
+
+/* ── Tab-навигация ── */
+.tab-nav {
+    display: flex;
+    background: #2c2f36;
+    position: sticky;
+    top: 52px;
+    z-index: 99;
+    padding: 0 16px;
+    gap: 0;
+}
+.tab-nav__btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: rgba(255,255,255,.6);
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: var(--font);
+}
+.tab-nav__btn:hover { color: rgba(255,255,255,.85); }
+.tab-nav__btn--active { color: #fff; border-bottom-color: var(--color-primary); }
+
+/* ── Питание: баннер настройки ── */
+.nutrition-setup {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--color-text-secondary);
+}
+.nutrition-setup h2 { margin-bottom: 12px; color: var(--color-text); }
+.nutrition-setup p { margin-bottom: 20px; }
+
+/* ── Питание: навигация по датам ── */
+.date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.date-nav__label {
+    font-weight: 700;
+    font-size: 1rem;
+    min-width: 140px;
+    text-align: center;
+}
+
+/* ── Питание: дашборд целей ── */
+.nutrition-targets {
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    margin-bottom: 20px;
+}
+.nutrition-targets__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+.nutrition-targets__title { font-weight: 700; font-size: 1rem; }
+.nutrition-targets__edit {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: .85rem;
+    color: var(--color-blue);
+    text-decoration: underline;
+}
+
+.progress-row { margin-bottom: 10px; }
+.progress-row__label {
+    display: flex;
+    justify-content: space-between;
+    font-size: .85rem;
+    margin-bottom: 3px;
+    color: var(--color-text-secondary);
+}
+.progress-row__label strong { color: var(--color-text); }
+.progress-bar {
+    height: 10px;
+    background: #eee;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.progress-bar__fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width .3s ease;
+}
+.progress-bar__fill--cal  { background: var(--color-blue); }
+.progress-bar__fill--pro  { background: var(--color-accent); }
+.progress-bar__fill--fat  { background: #fbc02d; }
+.progress-bar__fill--carb { background: var(--color-primary); }
+.progress-bar__fill--over { background: var(--color-danger); }
+
+.text--danger { color: var(--color-danger) !important; }
+
+.nutrition-warning {
+    color: var(--color-danger);
+    font-size: .85rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 4px 0 6px;
+}
+
+.macro-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 6px;
+}
+
+/* ── Питание: карточки приёмов пищи ── */
+.meal-card {
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.meal-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+.meal-card__info { display: flex; align-items: center; gap: 10px; flex: 1; }
+.meal-card__type {
+    font-weight: 700;
+    font-size: .85rem;
+    padding: 3px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+.meal-card__type--breakfast { background: #fff3e0; color: #e65100; }
+.meal-card__type--lunch     { background: #e8f5e9; color: #2e7d32; }
+.meal-card__type--dinner    { background: #e3f2fd; color: #1565c0; }
+.meal-card__type--snack     { background: #f3e5f5; color: #7b1fa2; }
+
+.meal-card__summary { font-size: .85rem; color: var(--color-text-secondary); }
+.meal-card__actions { display: flex; gap: 4px; align-items: center; }
+.meal-card__expand { font-size: 1rem; color: var(--color-text-secondary); transition: transform .2s; }
+.meal-card--expanded .meal-card__expand { transform: rotate(180deg); }
+
+.meal-card__body {
+    display: none;
+    border-top: 1px solid var(--color-border);
+    padding: 12px 16px;
+}
+.meal-card--expanded .meal-card__body { display: block; animation: fadeIn .25s ease; }
+
+.food-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #fafafa;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+}
+.food-item__info { flex: 1; min-width: 0; }
+.food-item__name { font-weight: 600; font-size: .9rem; }
+.food-item__macros { font-size: .8rem; color: var(--color-text-secondary); }
+.food-item__actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.btn--add-food {
+    margin-top: 6px;
+    background: transparent;
+    border: 1px dashed var(--color-blue);
+    color: var(--color-blue);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: .85rem;
+    width: 100%;
+    text-align: center;
+}
+.btn--add-food:hover { background: #e3f2fd; }
+
+/* ── Питание: сетка КБЖУ в модалке ── */
+.food-macros-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.food-macros-grid .form-input { margin-bottom: 4px; }
+
+/* ── Питание: выбор типа приёма пищи ── */
+.meal-type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.btn--meal-type {
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+    font-family: var(--font);
+}
+.btn--meal-type:hover { transform: scale(1.03); box-shadow: var(--shadow-hover); }
+
+/* ── ИМТ ── */
+.bmi-card {
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.bmi-result__value {
+    font-size: 3rem;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 4px;
+}
+.bmi-result__label {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.bmi-scale { margin-bottom: 14px; }
+.bmi-scale__bar {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(to right, #2196f3 0%, #2196f3 10.4%, #4caf50 10.4%, #4caf50 37.5%, #ff9800 37.5%, #ff9800 58.3%, #e53935 58.3%, #e53935 100%);
+    position: relative;
+}
+.bmi-scale__marker {
+    width: 4px;
+    height: 20px;
+    background: var(--color-text);
+    border-radius: 2px;
+    position: absolute;
+    top: -4px;
+    transition: left .3s;
+}
+.bmi-scale__labels {
+    position: relative;
+    height: 16px;
+    font-size: .75rem;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+}
+.bmi-scale__labels span {
+    position: absolute;
+    transform: translateX(-50%);
+}
+.bmi-scale__labels span:nth-child(1) { left: 0%; }
+.bmi-scale__labels span:nth-child(2) { left: 10.4%; }
+.bmi-scale__labels span:nth-child(3) { left: 37.5%; }
+.bmi-scale__labels span:nth-child(4) { left: 58.3%; }
+.bmi-scale__labels span:nth-child(5) { left: 100%; }
+
+.bmi-categories {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    text-align: center;
+    font-size: .78rem;
+}
+.bmi-cat {
+    padding: 6px;
+    border-radius: 6px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+.bmi-cat--under  { background: #e3f2fd; color: #1565c0; }
+.bmi-cat--normal { background: #e8f5e9; color: #2e7d32; }
+.bmi-cat--over   { background: #fff3e0; color: #e65100; }
+.bmi-cat--obese  { background: #ffebee; color: #c62828; }
+
+/* ── Питание: мобильная адаптация ── */
+@media (max-width: 600px) {
+    .tab-nav { top: 42px; padding: 0 8px; }
+    .tab-nav__btn { padding: 8px 14px; font-size: .82rem; }
+    .nutrition-targets { padding: 14px 12px; }
+    .macro-grid { grid-template-columns: 1fr; }
+    .food-macros-grid { grid-template-columns: 1fr; }
+    .meal-type-grid { grid-template-columns: 1fr; }
+    .meal-card__header { padding: 10px 12px; }
+}
