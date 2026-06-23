@@ -46,7 +46,7 @@
 ## Быстрый старт (Docker)
 
 ```bash
-git clone https://github.com/your-repo/training_plan.git
+git clone https://github.com/vsshchanov/training_plan.git
 cd training_plan
 ```
 
@@ -69,6 +69,117 @@ docker compose up --build
 | Приложение | http://localhost:5000 |
 | ngrok (публичный URL) | http://localhost:4040 |
 | PgAdmin | http://localhost:5050 |
+
+## Деплой на VPS (production)
+
+**1. Подключитесь к серверу:**
+```bash
+ssh root@ВАШ_IP
+```
+
+**2. Установите зависимости:**
+```bash
+apt update && apt upgrade -y
+apt install -y docker.io docker-compose nginx git
+```
+
+**3. Склонируйте репозиторий:**
+```bash
+git clone -b nutritionist https://github.com/vsshchanov/training_plan.git /opt/workout-app
+cd /opt/workout-app
+```
+
+**4. Создайте файл с секретами:**
+```bash
+nano /opt/workout-app/.env.prod
+```
+```
+SECRET_KEY=ваша-длинная-случайная-строка
+POSTGRES_USER=workout_user
+POSTGRES_PASSWORD=ваш-надёжный-пароль
+POSTGRES_DB=workout_tracker
+```
+
+**5. Запустите приложение:**
+```bash
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+**6. Настройте Nginx:**
+```bash
+nano /etc/nginx/sites-available/workout
+```
+```nginx
+server {
+    listen 80;
+    server_name ВАШ_IP;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+```bash
+ln -s /etc/nginx/sites-available/workout /etc/nginx/sites-enabled/
+rm /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+```
+
+**7. Готово:** откройте `http://ВАШ_IP` в браузере.
+
+## Управление сервером
+
+```bash
+ssh root@ВАШ_IP
+cd /opt/workout-app
+```
+
+| Действие | Команда |
+|---|---|
+| Логи приложения | `docker-compose -f docker-compose.prod.yml logs --tail 20 web` |
+| Остановить | `docker-compose -f docker-compose.prod.yml down` |
+| Запустить | `docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d` |
+| Обновить до новой версии | `git pull && docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build` |
+| Удалить всё (включая БД) | `docker-compose -f docker-compose.prod.yml down -v` |
+
+## Перенос локальной БД на сервер
+
+На вашем ПК:
+```bash
+docker exec workout_db pg_dump -U workout_user --encoding=UTF8 workout_tracker > backup.sql
+scp backup.sql root@ВАШ_IP:/opt/workout-app/
+```
+
+На сервере:
+```bash
+docker exec -i workout-app_db_1 psql -U workout_user workout_tracker < /opt/workout-app/backup.sql
+```
+
+## Просмотр базы данных
+
+Через терминал на сервере:
+```bash
+docker exec -it workout-app_db_1 psql -U workout_user workout_tracker
+```
+
+Полезные команды psql:
+```sql
+\dt                           -- список таблиц
+SELECT * FROM users;          -- пользователи
+SELECT * FROM workout_days;   -- тренировки
+SELECT * FROM nutrition_days; -- дни питания
+\q                            -- выйти
+```
+
+Через SSH-туннель (для подключения DBeaver/pgAdmin с ПК):
+```bash
+ssh -L 5433:127.0.0.1:5432 root@ВАШ_IP
+```
+Затем подключитесь к `localhost:5433` в любом клиенте БД.
 
 ## Структура проекта
 
@@ -141,3 +252,4 @@ Dockerfile              — сборка образа
 | `main` | Стабильная версия с тренировками |
 | `app_on_server` | main + подготовка к деплою на VPS (gunicorn, docker-compose.prod.yml) |
 | `nutritionist` | app_on_server + модуль питания и ИМТ |
+| `develop` | Ветка разработки |
