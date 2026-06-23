@@ -819,6 +819,56 @@ body {
 .bmi-cat--over   { background: #fff3e0; color: #e65100; }
 .bmi-cat--obese  { background: #ffebee; color: #c62828; }
 
+/* ── Автоподсказки продуктов ── */
+.food-name-wrapper { position: relative; }
+.food-name-wrapper .form-input { margin-bottom: 0; }
+
+.food-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 300;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.food-suggestion {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: .9rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.food-suggestion:hover { background: #e3f2fd; }
+.food-suggestion__macros { font-size: .78rem; color: var(--color-text-secondary); }
+
+/* ── Каталог продуктов ── */
+.catalog-list {
+    max-height: 350px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+.catalog-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 8px;
+}
+.catalog-item__select {
+    flex: 1;
+    cursor: pointer;
+    min-width: 0;
+}
+.catalog-item__select:hover { color: var(--color-blue); }
+.catalog-item__name { font-weight: 600; font-size: .9rem; }
+.catalog-item__macros { font-size: .78rem; color: var(--color-text-secondary); }
+
 /* ── Питание: мобильная адаптация ── */
 @media (max-width: 600px) {
     .tab-nav { top: 42px; padding: 0 8px; }

@@ -282,6 +282,28 @@ class FoodItemModel(Base):
         }
 
 
+class ProductModel(Base):
+    __tablename__ = "products"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    name = Column(String(255), nullable=False)
+    calories = Column(Float, nullable=False)
+    protein = Column(Float, nullable=False)
+    fat = Column(Float, nullable=False)
+    carbs = Column(Float, nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "calories": self.calories,
+            "protein": self.protein,
+            "fat": self.fat,
+            "carbs": self.carbs,
+            "user_id": self.user_id,
+        }
+
+
 # ---------- Реализация хранилища ----------
 class PostgresStorage(BaseStorage):
     def __init__(self, host: str, port: int, database: str, user: str, password: str):
@@ -867,5 +889,101 @@ class PostgresStorage(BaseStorage):
                 session.commit()
                 return True
             return False
+        finally:
+            session.close()
+
+    # ─── Справочник продуктов ───
+    def get_products(self, user_id: int, query: str = "") -> List[dict]:
+        session = self._get_session()
+        try:
+            q = session.query(ProductModel).filter(
+                (ProductModel.user_id == None) | (ProductModel.user_id == user_id)
+            )
+            if query:
+                q = q.filter(ProductModel.name.ilike(f"%{query}%"))
+            all_products = q.order_by(ProductModel.name).all()
+            seen = {}
+            for p in all_products:
+                key = p.name.lower()
+                if key not in seen or p.user_id is not None:
+                    seen[key] = p
+            return [p.to_dict() for p in sorted(seen.values(), key=lambda x: x.name)]
+        finally:
+            session.close()
+
+    def add_product(self, user_id: int, data: dict) -> dict:
+        session = self._get_session()
+        try:
+            p = ProductModel(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                name=data["name"],
+                calories=float(data["calories"]),
+                protein=float(data["protein"]),
+                fat=float(data["fat"]),
+                carbs=float(data["carbs"]),
+            )
+            session.add(p)
+            session.commit()
+            session.refresh(p)
+            return p.to_dict()
+        finally:
+            session.close()
+
+    def add_product_if_not_exists(self, user_id: int, data: dict) -> None:
+        session = self._get_session()
+        try:
+            exists = session.query(ProductModel).filter(
+                ProductModel.name.ilike(data["name"]),
+                (ProductModel.user_id == None) | (ProductModel.user_id == user_id),
+            ).first()
+            if not exists:
+                session.add(ProductModel(
+                    id=str(uuid.uuid4()),
+                    user_id=user_id,
+                    name=data["name"],
+                    calories=float(data["calories"]),
+                    protein=float(data["protein"]),
+                    fat=float(data["fat"]),
+                    carbs=float(data["carbs"]),
+                ))
+                session.commit()
+        finally:
+            session.close()
+
+    def delete_product(self, product_id: str, user_id: int) -> bool:
+        session = self._get_session()
+        try:
+            p = session.query(ProductModel).filter(
+                ProductModel.id == product_id,
+            ).first()
+            if p:
+                session.delete(p)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+
+    def seed_products_from_json(self, json_path: str) -> None:
+        import json as _json
+        session = self._get_session()
+        try:
+            existing = session.query(ProductModel).filter(ProductModel.user_id == None).count()
+            if existing > 0:
+                return
+            with open(json_path, 'r', encoding='utf-8') as f:
+                products = _json.load(f)
+            for p in products:
+                session.add(ProductModel(
+                    id=str(uuid.uuid4()),
+                    user_id=None,
+                    name=p["name"],
+                    calories=float(p["calories"]),
+                    protein=float(p["protein"]),
+                    fat=float(p["fat"]),
+                    carbs=float(p["carbs"]),
+                ))
+            session.commit()
         finally:
             session.close()

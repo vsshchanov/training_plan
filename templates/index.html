@@ -203,7 +203,11 @@
                 <input type="hidden" id="foodMealId" value="">
                 <input type="hidden" id="foodItemId" value="">
                 <label class="form-label" for="foodName">Название:</label>
-                <input class="form-input" type="text" id="foodName" placeholder="Куриная грудка" required>
+                <div class="food-name-wrapper">
+                    <input class="form-input" type="text" id="foodName" placeholder="Начните вводить название..." required autocomplete="off">
+                    <div class="food-suggestions" id="foodSuggestions" style="display:none;"></div>
+                </div>
+                <button type="button" class="btn--add-food" id="btnOpenCatalog" style="margin-bottom:12px;">Выбрать из справочника</button>
                 <label class="form-label" for="foodWeight">Вес (г):</label>
                 <input class="form-input" type="number" id="foodWeight" step="1" min="1" placeholder="150" required>
                 <div class="food-macros-grid">
@@ -229,6 +233,31 @@
                     <button type="submit" class="btn btn--save">Сохранить</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Каталог продуктов -->
+    <div class="modal-overlay" id="catalogModalOverlay" style="display:none;">
+        <div class="modal modal--wide">
+            <h2 class="modal__title">Справочник продуктов</h2>
+            <input class="form-input" type="text" id="catalogSearch" placeholder="Поиск..." autocomplete="off">
+            <div id="catalogList" class="catalog-list"></div>
+            <details style="margin-top:8px;">
+                <summary style="cursor:pointer;font-weight:600;padding:6px 0;">+ Добавить новый продукт в справочник</summary>
+                <div style="margin-top:10px;">
+                    <input class="form-input" type="text" id="newProdName" placeholder="Название">
+                    <div class="food-macros-grid">
+                        <div><label class="form-label">Ккал/100г:</label><input class="form-input" type="number" id="newProdCal" step="0.1" min="0"></div>
+                        <div><label class="form-label">Белки/100г:</label><input class="form-input" type="number" id="newProdPro" step="0.1" min="0"></div>
+                        <div><label class="form-label">Жиры/100г:</label><input class="form-input" type="number" id="newProdFat" step="0.1" min="0"></div>
+                        <div><label class="form-label">Углеводы/100г:</label><input class="form-input" type="number" id="newProdCarb" step="0.1" min="0"></div>
+                    </div>
+                    <button class="btn btn--save" id="btnAddProduct" style="width:100%;">Добавить в справочник</button>
+                </div>
+            </details>
+            <div class="modal__actions" style="margin-top:10px;">
+                <button type="button" class="btn btn--cancel" id="btnCatalogClose">Закрыть</button>
+            </div>
         </div>
     </div>
 

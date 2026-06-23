@@ -592,6 +592,7 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('profileModalOverlay').style.display = 'none';
         document.getElementById('foodModalOverlay').style.display = 'none';
         document.getElementById('mealTypeModalOverlay').style.display = 'none';
+        document.getElementById('catalogModalOverlay').style.display = 'none';
     }
 });
 
@@ -1119,11 +1120,148 @@ foodForm.addEventListener('submit', async (e) => {
             await apiPost(`/nutrition/meals/${mealId}/foods`, data);
         }
         foodModalOverlay.style.display = 'none';
+        if (!foodId) productsCache = null;
         await loadNutritionData();
         showToast(foodId ? 'Продукт обновлён' : 'Продукт добавлен');
     } catch (err) {
         showToast('Ошибка: ' + err.message, 'error');
     }
+});
+
+// ------------- Справочник продуктов: автоподсказки + каталог -------------
+let productsCache = null;
+const foodNameInput = document.getElementById('foodName');
+const foodSuggestions = document.getElementById('foodSuggestions');
+const catalogModalOverlay = document.getElementById('catalogModalOverlay');
+const catalogList = document.getElementById('catalogList');
+const catalogSearch = document.getElementById('catalogSearch');
+
+async function getProducts() {
+    if (!productsCache) {
+        productsCache = await apiGet('/nutrition/products');
+    }
+    return productsCache;
+}
+
+function fillFoodFromProduct(product) {
+    foodNameInput.value = product.name;
+    document.getElementById('foodCal').value = product.calories;
+    document.getElementById('foodPro').value = product.protein;
+    document.getElementById('foodFat').value = product.fat;
+    document.getElementById('foodCarb').value = product.carbs;
+    foodSuggestions.style.display = 'none';
+    document.getElementById('foodWeight').focus();
+}
+
+// Автоподсказки при вводе
+let suggestTimeout = null;
+foodNameInput.addEventListener('input', () => {
+    clearTimeout(suggestTimeout);
+    suggestTimeout = setTimeout(async () => {
+        const q = foodNameInput.value.trim().toLowerCase();
+        if (q.length < 2) { foodSuggestions.style.display = 'none'; return; }
+        const products = await getProducts();
+        const matches = products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
+        if (matches.length === 0) { foodSuggestions.style.display = 'none'; return; }
+        foodSuggestions.innerHTML = matches.map(p => `
+            <div class="food-suggestion" data-name="${escapeHTML(p.name)}" data-cal="${p.calories}" data-pro="${p.protein}" data-fat="${p.fat}" data-carb="${p.carbs}">
+                <div>${escapeHTML(p.name)}</div>
+                <div class="food-suggestion__macros">${p.calories} ккал · Б ${p.protein} · Ж ${p.fat} · У ${p.carbs}</div>
+            </div>
+        `).join('');
+        foodSuggestions.style.display = 'block';
+        foodSuggestions.querySelectorAll('.food-suggestion').forEach(el => {
+            el.addEventListener('click', () => {
+                fillFoodFromProduct({
+                    name: el.dataset.name,
+                    calories: parseFloat(el.dataset.cal),
+                    protein: parseFloat(el.dataset.pro),
+                    fat: parseFloat(el.dataset.fat),
+                    carbs: parseFloat(el.dataset.carb),
+                });
+            });
+        });
+    }, 200);
+});
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.food-name-wrapper')) foodSuggestions.style.display = 'none';
+});
+
+// Кнопка "Из справочника"
+document.getElementById('btnOpenCatalog').addEventListener('click', async () => {
+    catalogModalOverlay.style.display = 'flex';
+    catalogSearch.value = '';
+    await renderCatalog('');
+});
+document.getElementById('btnCatalogClose').addEventListener('click', () => { catalogModalOverlay.style.display = 'none'; });
+catalogModalOverlay.addEventListener('click', (e) => { if (e.target === catalogModalOverlay) catalogModalOverlay.style.display = 'none'; });
+
+catalogSearch.addEventListener('input', () => renderCatalog(catalogSearch.value));
+
+async function renderCatalog(query) {
+    const products = await getProducts();
+    const q = query.trim().toLowerCase();
+    const filtered = q ? products.filter(p => p.name.toLowerCase().includes(q)) : products;
+    catalogList.innerHTML = filtered.map(p => `
+        <div class="catalog-item">
+            <div class="catalog-item__select" data-name="${escapeHTML(p.name)}" data-cal="${p.calories}" data-pro="${p.protein}" data-fat="${p.fat}" data-carb="${p.carbs}">
+                <div class="catalog-item__name">${escapeHTML(p.name)}</div>
+                <div class="catalog-item__macros">${p.calories} ккал · Б ${p.protein} · Ж ${p.fat} · У ${p.carbs} (на 100г)</div>
+            </div>
+            <button class="btn-icon btn-icon--danger" data-del-product="${p.id}" title="Удалить">✕</button>
+        </div>
+    `).join('');
+    if (filtered.length === 0) {
+        catalogList.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">Ничего не найдено</p>';
+    }
+    catalogList.querySelectorAll('.catalog-item__select').forEach(el => {
+        el.addEventListener('click', () => {
+            fillFoodFromProduct({
+                name: el.dataset.name,
+                calories: parseFloat(el.dataset.cal),
+                protein: parseFloat(el.dataset.pro),
+                fat: parseFloat(el.dataset.fat),
+                carbs: parseFloat(el.dataset.carb),
+            });
+            catalogModalOverlay.style.display = 'none';
+        });
+    });
+    catalogList.querySelectorAll('[data-del-product]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const ok = await showConfirm('Удалить продукт из справочника?');
+            if (!ok) return;
+            try {
+                await apiDelete(`/nutrition/products/${btn.dataset.delProduct}`);
+                productsCache = null;
+                await renderCatalog(catalogSearch.value);
+                showToast('Продукт удалён из справочника');
+            } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
+        });
+    });
+}
+
+// Добавление нового продукта в справочник
+document.getElementById('btnAddProduct').addEventListener('click', async () => {
+    const name = document.getElementById('newProdName').value.trim();
+    const calories = parseFloat(document.getElementById('newProdCal').value);
+    const protein = parseFloat(document.getElementById('newProdPro').value);
+    const fat = parseFloat(document.getElementById('newProdFat').value);
+    const carbs = parseFloat(document.getElementById('newProdCarb').value);
+    if (!name) { showToast('Введите название', 'error'); return; }
+    if (isNaN(calories)) { showToast('Введите калории', 'error'); return; }
+    try {
+        await apiPost('/nutrition/products', { name, calories, protein: protein || 0, fat: fat || 0, carbs: carbs || 0 });
+        productsCache = null;
+        document.getElementById('newProdName').value = '';
+        document.getElementById('newProdCal').value = '';
+        document.getElementById('newProdPro').value = '';
+        document.getElementById('newProdFat').value = '';
+        document.getElementById('newProdCarb').value = '';
+        await renderCatalog(catalogSearch.value);
+        showToast('Продукт добавлен в справочник');
+    } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
 });
 
 // ------------- ИМТ (индекс массы тела) -------------

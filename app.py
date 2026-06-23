@@ -4,6 +4,8 @@
 
 import csv
 import io
+import json
+import os
 from datetime import date
 from flask import Flask, render_template, request, jsonify, Response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -324,6 +326,13 @@ def add_food_item(meal_id):
     item = storage.add_food_item(meal_id, data, current_user.id)
     if item is None:
         return jsonify({"error": "Приём пищи не найден или доступ запрещён"}), 404
+    storage.add_product_if_not_exists(current_user.id, {
+        "name": data["name"],
+        "calories": data["calories_per_100g"],
+        "protein": data["protein_per_100g"],
+        "fat": data["fat_per_100g"],
+        "carbs": data["carbs_per_100g"],
+    })
     return jsonify(item), 201
 
 @app.route("/api/nutrition/meals/<meal_id>/foods/<food_id>", methods=["PUT"])
@@ -342,6 +351,32 @@ def update_food_item(meal_id, food_id):
 def delete_food_item(meal_id, food_id):
     if not storage.delete_food_item(meal_id, food_id, current_user.id):
         return jsonify({"error": "Продукт не найден или доступ запрещён"}), 404
+    return jsonify({"message": "Продукт удалён"})
+
+# ── Справочник продуктов ──
+_products_json = os.path.join(os.path.dirname(__file__), 'static', 'data', 'products.json')
+storage.seed_products_from_json(_products_json)
+
+@app.route("/api/nutrition/products", methods=["GET"])
+@login_required
+def search_products():
+    query = request.args.get("q", "").strip()
+    return jsonify(storage.get_products(current_user.id, query))
+
+@app.route("/api/nutrition/products", methods=["POST"])
+@login_required
+def add_product():
+    data = request.get_json()
+    if not data or "name" not in data:
+        return jsonify({"error": "Поле 'name' обязательно"}), 400
+    product = storage.add_product(current_user.id, data)
+    return jsonify(product), 201
+
+@app.route("/api/nutrition/products/<product_id>", methods=["DELETE"])
+@login_required
+def delete_product(product_id):
+    if not storage.delete_product(product_id, current_user.id):
+        return jsonify({"error": "Продукт не найден"}), 404
     return jsonify({"message": "Продукт удалён"})
 
 if __name__ == "__main__":
